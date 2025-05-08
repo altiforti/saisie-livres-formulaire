@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saisie de Livres avec EAN</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            margin: auto;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .price-input-container {
+            position: relative;
+        }
+        .price-input-container input[type="number"] {
+            padding-left: 25px; /* Space for Euro symbol */
+        }
+        .euro-symbol {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-60%);
+            color: #555;
+        }
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #submitBtn {
+            background-color: #5cb85c;
+            color: white;
+        }
+        #clearBtn {
+            background-color: #f0ad4e;
+            color: white;
+        }
+        .logo {
+            display: block;
+            margin: 0 auto 20px auto;
+            max-height: 50px;
+        }
+        .message {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
+        .error {
+            background-color: #f2dede;
+            color: #a94442;
+            border: 1px solid #ebccd1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Emplacement pour le logo si fourni -->
+        <!-- <img src="/static/logo.png" alt="Sorbonne Librairie" class="logo"> -->
+        <h1>SAISIE DE LIVRES avec ean</h1>
+
+        <div id="messageArea" class="message" style="display: none;"></div>
+
+        <form id="bookForm">
+            <label for="ean">EAN</label>
+            <input type="text" id="ean" name="ean" pattern="\d{13}" title="EAN doit contenir 13 chiffres" required>
+
+            <label for="etat">ETAT</label>
+            <select id="etat" name="etat" required>
+                <option value="">Sélectionnez un état...</option>
+            </select>
+
+            <label for="rayon">RAYON</label>
+            <select id="rayon" name="rayon" required>
+                <option value="">Sélectionnez un rayon...</option>
+            </select>
+
+            <label for="sousRayon">sous rayon</label>
+            <input type="text" id="sousRayon" name="sousRayon">
+
+            <label for="prixMini">PRIX MINI</label>
+            <div class="price-input-container">
+                <span class="euro-symbol">€</span>
+                <input type="number" id="prixMini" name="prixMini" step="0.01" min="0" placeholder="0.00">
+            </div>
+
+            <label for="prixMaxi">PRIX MAXI</label>
+            <div class="price-input-container">
+                <span class="euro-symbol">€</span>
+                <input type="number" id="prixMaxi" name="prixMaxi" step="0.01" min="0" placeholder="0.00">
+            </div>
+
+            <div class="button-container">
+                <button type="button" id="clearBtn">Effacer le formulaire</button>
+                <button type="submit" id="submitBtn">Envoyer</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const form = document.getElementById("bookForm");
+            const eanInput = document.getElementById("ean");
+            const etatSelect = document.getElementById("etat");
+            const rayonSelect = document.getElementById("rayon");
+            const sousRayonInput = document.getElementById("sousRayon");
+            const prixMiniInput = document.getElementById("prixMini");
+            const prixMaxiInput = document.getElementById("prixMaxi");
+            const clearBtn = document.getElementById("clearBtn");
+            const messageArea = document.getElementById("messageArea");
+
+            // Charger les options pour ETAT et RAYON
+            fetch("/get_form_options")
+                .then(response => response.json())
+                .then(data => {
+                    if (data.etats) {
+                        data.etats.forEach(etat => {
+                            const option = document.createElement("option");
+                            option.value = etat;
+                            option.textContent = etat;
+                            etatSelect.appendChild(option);
+                        });
+                    }
+                    if (data.rayons) {
+                        data.rayons.forEach(rayon => {
+                            const option = document.createElement("option");
+                            option.value = rayon;
+                            option.textContent = rayon;
+                            rayonSelect.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error("Erreur lors du chargement des options:", error);
+                    displayMessage("Erreur de chargement des options.", "error");
+                });
+
+            // Effacer le formulaire
+            clearBtn.addEventListener("click", function() {
+                form.reset();
+                eanInput.focus();
+                hideMessage();
+            });
+
+            // Soumettre le formulaire
+            form.addEventListener("submit", function(event) {
+                event.preventDefault();
+                hideMessage();
+
+                const formData = {
+                    ean: eanInput.value,
+                    etat: etatSelect.value,
+                    rayon: rayonSelect.value,
+                    sous_rayon: sousRayonInput.value || "N/A", // Valeur par défaut si vide
+                    prix_mini: prixMiniInput.value ? parseFloat(prixMiniInput.value) : null,
+                    prix_maxi: prixMaxiInput.value ? parseFloat(prixMaxiInput.value) : null
+                };
+
+                // Validation simple des prix
+                if (formData.prix_mini !== null && formData.prix_maxi !== null && formData.prix_mini > formData.prix_maxi) {
+                    displayMessage("Le PRIX MINI ne peut pas être supérieur au PRIX MAXI.", "error");
+                    return;
+                }
+
+                fetch("/add_book_entry_form", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(formData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message.includes("succès")) {
+                        displayMessage(data.message, "success");
+                        form.reset(); // Réinitialiser pour la prochaine saisie
+                        eanInput.focus();
+                    } else {
+                        displayMessage(data.message, "error");
+                    }
+                })
+                .catch(error => {
+                    console.error("Erreur lors de la soumission:", error);
+                    displayMessage("Erreur de communication avec le serveur.", "error");
+                });
+            });
+
+            function displayMessage(message, type) {
+                messageArea.textContent = message;
+                messageArea.className = "message " + type;
+                messageArea.style.display = "block";
+            }
+
+            function hideMessage() {
+                messageArea.style.display = "none";
+            }
+            
+            eanInput.focus(); // Focus sur le champ EAN au chargement
+        });
+    </script>
+</body>
+</html>
+

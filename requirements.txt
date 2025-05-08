@@ -1,0 +1,5 @@
+# Fichier requirements.txt pour l'application de saisie de livres
+Flask>=2.0
+airtable-python-wrapper>=0.15.0
+requests>=2.20
+
